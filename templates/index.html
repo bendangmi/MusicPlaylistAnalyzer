@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>网易云歌单分析系统</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .form-section { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #333; font-weight: bold; }
+        input, textarea { 
+            width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;
+            box-sizing: border-box; margin-bottom: 10px; 
+        }
+        button { 
+            background: #0066cc; color: white; border: none; padding: 10px 20px;
+            border-radius: 4px; cursor: pointer; transition: background 0.3s;
+        }
+        button:hover { background: #0052a3; }
+        .result-section { margin-top: 30px; }
+        .analysis-section { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .cover-collage { max-width: 100%; margin: 20px 0; border-radius: 8px; }
+        .track-list { margin: 20px 0; }
+        .track-item { padding: 10px; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="form-section">
+        <h2>网易云歌单分析</h2>
+        <div class="input-group">
+            <label for="playlist_id">歌单ID：</label>
+            <input type="text" id="playlist_id" required>
+        </div>
+        <div class="input-group">
+            <label for="cookie">Cookie：</label>
+            <textarea id="cookie" rows="4" required></textarea>
+        </div>
+        <button onclick="analyzePlaylist()">开始分析</button>
+    </div>
+
+    <div class="result-section" id="results" style="display: none;">
+        <h2>分析结果</h2>
+        
+        <!-- 歌单信息 -->
+        <div class="analysis-section">
+            <h3>基础信息</h3>
+            <div id="playlist_basic"></div>
+        </div>
+
+        <!-- 封面拼贴 -->
+        <div class="analysis-section" id="collage-section">
+            <h3>封面拼贴</h3>
+            <img id="cover_collage" class="cover-collage">
+        </div>
+
+        <!-- 歌曲列表 -->
+        <div class="analysis-section">
+            <h3>歌曲列表</h3>
+            <div class="track-list" id="track_list"></div>
+        </div>
+
+        <!-- 深度分析 -->
+        <div class="analysis-section">
+            <h3>智能分析</h3>
+            <div id="style_analysis" class="analysis"></div>
+            <div id="cover_analysis" class="analysis"></div>
+            <div id="trend_analysis" class="analysis"></div>
+        </div>
+    </div>
+
+    <script>
+        function analyzePlaylist() {
+            const playlistId = document.getElementById('playlist_id').value;
+            const cookie = document.getElementById('cookie').value;
+
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'playlist_id': playlistId,
+                    'cookie': cookie
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('错误: ' + data.error);
+                    return;
+                }
+
+                // 显示结果区域
+                document.getElementById('results').style.display = 'block';
+
+                // 填充基础信息
+                const basicInfo = `
+                    <p>名称：${data.playlist_info.name}</p>
+                    <p>创建者：${data.playlist_info.creator}</p>
+                    <p>歌曲数：${data.playlist_info.track_count}</p>
+                    <p>播放量：${data.playlist_info.play_count}</p>
+                    ${data.playlist_info.description ? `<p>简介：${data.playlist_info.description}</p>` : ''}
+                `;
+                document.getElementById('playlist_basic').innerHTML = basicInfo;
+
+                // 显示封面拼贴
+                if (data.collage_url) {
+                    document.getElementById('cover_collage').src = data.collage_url;
+                } else {
+                    document.getElementById('collage-section').style.display = 'none';
+                }
+
+                // 填充歌曲列表
+                const trackList = data.tracks.map((t, i) => `
+                    <div class="track-item">
+                        <strong>${i+1}. ${t.name}</strong><br>
+                        歌手：${t.artists.join(', ')}<br>
+                        专辑：${t.album}
+                    </div>
+                `).join('');
+                document.getElementById('track_list').innerHTML = trackList;
+
+                // 显示深度分析
+                document.getElementById('style_analysis').innerHTML = `
+                    <h4>风格分析</h4>
+                    <p>${data.analyses.style_analysis}</p>
+                `;
+                document.getElementById('cover_analysis').innerHTML = `
+                    <h4>封面分析</h4>
+                    <p>${data.analyses.cover_analysis}</p>
+                `;
+                document.getElementById('trend_analysis').innerHTML = `
+                    <h4>趋势点评</h4>
+                    <p>${data.analyses.trend_analysis}</p>
+                `;
+            })
+            .catch(error => {
+                alert('请求失败: ' + error.message);
+            });
+        }
+    </script>
+</body>
+</html>
